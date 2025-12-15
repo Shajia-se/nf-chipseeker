@@ -224,29 +224,26 @@ process chipseeker_master {
 }
 
 
-workflow.onStart {
-  if (!params.diffbind_output) error "Missing --diffbind_output"
-  if (!params.gtf)         error "Missing --gtf (mm39 GTF)"
-}
-
-Channel
-  .fromPath("${params.diffbind_output}/all_peaks.*.tsv")
-  .ifEmpty { error "No all_peaks.*.tsv found under: ${params.diffbind_output}" }
-  .map { f ->
-    def comp = f.baseName.replaceFirst(/^all_peaks\./,'')
-    tuple(comp, f)
-  }
-  .set { ch_all_peaks }
-
-Channel
-  .fromPath("${params.diffbind_output}/consensus_peaks.tsv")
-  .ifEmpty { error "Missing consensus_peaks.tsv under: ${params.diffbind_output}" }
-  .set { ch_consensus }
-
 workflow {
 
-  annotated = chipseeker_annotate(ch_all_peaks, file(params.gtf))
+  if( !params.diffbind_output ) error "Missing --diffbind_output"
+  if( !params.gtf )          error "Missing --gtf (mm39 GTF)"
+  if( !file(params.gtf).exists() ) error "GTF not found: ${params.gtf}"
 
+  Channel
+    .fromPath("${params.diffbind_output}/all_peaks.*.tsv")
+    .ifEmpty { error "No all_peaks.*.tsv found under: ${params.diffbind_output}" }
+    .map { f ->
+      def comp = f.baseName.replaceFirst(/^all_peaks\./,'')
+      tuple(comp, f)
+    }
+    .set { ch_all_peaks }
+
+  Channel
+    .fromPath("${params.diffbind_output}/consensus_peaks.tsv")
+    .ifEmpty { error "Missing consensus_peaks.tsv under: ${params.diffbind_output}" }
+    .set { ch_consensus }
+
+  annotated = chipseeker_annotate(ch_all_peaks, file(params.gtf))
   chipseeker_master(ch_consensus, annotated.stats_tsv.collect(), file(params.gtf))
 }
-
