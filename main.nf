@@ -107,9 +107,17 @@ process chipseeker_annotate {
     suppressWarnings(GenomeInfoDb::seqlevelsStyle(gr) <- "NCBI")
   }
 
-  ## Keep only seqlevels present in TxDb
-  gr <- suppressWarnings(GenomeInfoDb::keepSeqlevels(gr, tx_seqs, pruning.mode="coarse"))
-  if (length(gr) == 0) stop("No peaks left after harmonizing chromosome names.")
+  # keep only shared seqlevels (THIS is the fix)
+  common_seqs <- intersect(seqlevels(gr), tx_seqs)
+  gr <- GenomeInfoDb::keepSeqlevels(gr, common_seqs, pruning.mode="coarse")
+
+  if (length(gr) == 0) {
+    stop(
+      "No peaks left after harmonizing seqlevels. ",
+      "Example TxDb seqlevels: ", paste(head(tx_seqs, 10), collapse=", "),
+      " | Example peak seqlevels: ", paste(head(seqlevels(gr), 10), collapse=", ")
+    )
+  }
 
   ## Annotation
   peakAnno <- annotatePeak(
@@ -204,12 +212,6 @@ process chipseeker_annotate {
 
   write.table(out, file=paste0("stats.", sample, ".tsv"),
               sep="\\t", quote=FALSE, row.names=FALSE)
-
-  ## Ensure NF output exact name
-  file.copy(paste0("stats.", sample, ".tsv"), paste0("stats.", sample, ".tsv"), overwrite=TRUE)
-
-  ## Also copy to the declared output filename (same, but keeps things explicit)
-  file.copy(paste0("stats.", sample, ".tsv"), paste0("stats.", sample, ".tsv"), overwrite=TRUE)
 RS
 
   Rscript run.R
@@ -244,12 +246,6 @@ process chipseeker_master {
   script:
   """
   set -euo pipefail
-
-  CONS="${consensus_tsv}"
-  GTF="${gtf}"
-  ANNODB="${params.annoDb}"
-  TSS_UP="${params.tss_up}"
-  TSS_DOWN="${params.tss_down}"
 
   ## bring stats into cwd for simple list.files()
   cp -f ${stats_files.join(' ')} . || true
@@ -294,7 +290,6 @@ process chipseeker_master {
 
   gr <- GRanges(seqnames=seqnames, ranges=IRanges(start, end))
 
-  ## Harmonize seqlevels style
   tx_seqs <- seqlevels(txdb)
   tx_has_chr <- any(grepl("^chr", tx_seqs))
   gr_has_chr <- any(grepl("^chr", as.character(seqnames(gr))))
@@ -305,8 +300,17 @@ process chipseeker_master {
     suppressWarnings(GenomeInfoDb::seqlevelsStyle(gr) <- "NCBI")
   }
 
-  gr <- suppressWarnings(GenomeInfoDb::keepSeqlevels(gr, tx_seqs, pruning.mode="coarse"))
-  if (length(gr) == 0) stop("No consensus peaks left after harmonizing chromosome names.")
+  # keep only shared seqlevels (THIS is the fix)
+  common_seqs <- intersect(seqlevels(gr), tx_seqs)
+  gr <- GenomeInfoDb::keepSeqlevels(gr, common_seqs, pruning.mode="coarse")
+
+  if (length(gr) == 0) {
+    stop(
+      "No peaks left after harmonizing seqlevels. ",
+      "Example TxDb seqlevels: ", paste(head(tx_seqs, 10), collapse=", "),
+      " | Example peak seqlevels: ", paste(head(seqlevels(gr), 10), collapse=", ")
+    )
+  }
 
   peakAnno <- annotatePeak(gr, tssRegion=c(-tss_up, tss_down), TxDb=txdb, annoDb=annoDb)
   D <- as.data.frame(peakAnno)
@@ -324,10 +328,9 @@ process chipseeker_master {
 
   write.table(D, "annotated_master_table.tsv", sep="\\t", quote=FALSE, row.names=FALSE)
   openxlsx::write.xlsx(D, "annotated_master_table.xlsx", rowNames=FALSE)
-RS
-
-  CONS="${CONS}" GTF="${GTF}" ANNODB="${ANNODB}" TSS_UP="${TSS_UP}" TSS_DOWN="${TSS_DOWN}" \\
-    Rscript master.R
+  
+  RS
+  Rscript master.R
   """
 }
 
