@@ -195,10 +195,8 @@ process chipseeker_master {
     path("annotated_master_table.tsv")
 
   script:
-  """
+  '''
   set -euo pipefail
-
-  cp -f ${stats_files.join(' ')} .
 
   cat > master.R <<'RS'
   suppressPackageStartupMessages({
@@ -219,7 +217,7 @@ process chipseeker_master {
   RS
 
   Rscript master.R
-  """
+  '''
 }
 
 workflow {
