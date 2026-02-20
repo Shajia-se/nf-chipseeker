@@ -205,7 +205,7 @@ process chipseeker_master {
     library(openxlsx)
   })
 
-  files <- list.files(pattern="^stats\\..*\\.tsv$", full.names=TRUE)
+  files <- list.files(pattern="^stats[.].*[.]tsv$", full.names=TRUE)
   if (length(files) == 0) stop("No stats files found")
 
   M <- read.delim(files[1], as.is=TRUE)
