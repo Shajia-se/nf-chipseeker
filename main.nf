@@ -85,18 +85,18 @@ process chipseeker_annotate {
     D <- D0
   }
 
-  if (!("strand" %in% colnames(D))) D$strand <- "*"
+  if (!("strand" %in% colnames(D))) D\$strand <- "*"
 
   gr <- GRanges(
-    seqnames = D$seqnames,
-    ranges   = IRanges(as.integer(D$start), as.integer(D$end)),
-    strand   = D$strand
+    seqnames = D\$seqnames,
+    ranges   = IRanges(as.integer(D\$start), as.integer(D\$end)),
+    strand   = D\$strand
   )
 
-  if ("score" %in% colnames(D))       mcols(gr)$score <- suppressWarnings(as.numeric(D$score))
-  if ("signalValue" %in% colnames(D)) mcols(gr)$signalValue <- suppressWarnings(as.numeric(D$signalValue))
-  if ("pValue" %in% colnames(D))      mcols(gr)$pValue <- suppressWarnings(as.numeric(D$pValue))
-  if ("qValue" %in% colnames(D))      mcols(gr)$qValue <- suppressWarnings(as.numeric(D$qValue))
+  if ("score" %in% colnames(D))       mcols(gr)\$score <- suppressWarnings(as.numeric(D\$score))
+  if ("signalValue" %in% colnames(D)) mcols(gr)\$signalValue <- suppressWarnings(as.numeric(D\$signalValue))
+  if ("pValue" %in% colnames(D))      mcols(gr)\$pValue <- suppressWarnings(as.numeric(D\$pValue))
+  if ("qValue" %in% colnames(D))      mcols(gr)\$qValue <- suppressWarnings(as.numeric(D\$qValue))
 
   tx_seqs <- seqlevels(txdb)
   tx_has_chr <- any(grepl("^chr", tx_seqs))
@@ -144,7 +144,7 @@ process chipseeker_annotate {
 
   if (do_enrich && has_reactome && ("geneId" %in% colnames(peak_df))) {
     suppressPackageStartupMessages(library(ReactomePA))
-    genes_all <- unique(na.omit(peak_df$geneId))
+    genes_all <- unique(na.omit(peak_df\$geneId))
     if (length(genes_all) > 0) {
       pw_all <- enrichPathway(genes_all, organism=reactome_org)
       write.table(as.data.frame(pw_all),
@@ -154,7 +154,7 @@ process chipseeker_annotate {
     }
 
     if ("qValue" %in% colnames(peak_df)) {
-      genes_sig <- unique(na.omit(subset(peak_df, qValue <= fdr_cutoff)$geneId))
+      genes_sig <- unique(na.omit(subset(peak_df, qValue <= fdr_cutoff)\$geneId))
       if (length(genes_sig) > 0) {
         pw_sig <- enrichPathway(genes_sig, organism=reactome_org)
         write.table(as.data.frame(pw_sig),
@@ -165,7 +165,7 @@ process chipseeker_annotate {
     }
   }
 
-  peak_df$merge_id <- paste(peak_df$seqnames, peak_df$start, peak_df$end, sep=":")
+  peak_df\$merge_id <- paste(peak_df\$seqnames, peak_df\$start, peak_df\$end, sep=":")
 
   out <- peak_df[, intersect(c("merge_id","annotation","distanceToTSS","score","signalValue","pValue","qValue"), colnames(peak_df)), drop=FALSE]
 
