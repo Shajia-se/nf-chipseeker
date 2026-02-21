@@ -49,6 +49,8 @@ Merged output (`${chipseeker_output}/`):
 
 - `annotated_master_table.tsv`
 - `annotated_master_table.xlsx`
+- `annotation_summary.by_sample.tsv`
+- `annotation_summary.by_sample.pdf`
 
 ## Run
 

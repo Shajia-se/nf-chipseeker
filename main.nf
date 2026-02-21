@@ -191,8 +191,8 @@ process chipseeker_master {
     path(stats_files)
 
   output:
-    path("annotated_master_table.xlsx")
-    path("annotated_master_table.tsv")
+    path("annotated_master_table.xlsx"), emit: master_xlsx
+    path("annotated_master_table.tsv"), emit: master_tsv
 
   script:
   '''
@@ -220,6 +220,82 @@ process chipseeker_master {
   '''
 }
 
+process chipseeker_summary {
+  tag "summary"
+
+  publishDir "${params.project_folder}/${params.chipseeker_output}", mode: 'copy', overwrite: true
+
+  input:
+    path(master_tsv)
+
+  output:
+    path("annotation_summary.by_sample.tsv")
+    path("annotation_summary.by_sample.pdf")
+
+  script:
+  '''
+  set -euo pipefail
+
+  cat > summary.R <<'RS'
+  D <- read.delim("annotated_master_table.tsv", as.is=TRUE, check.names=FALSE)
+
+  anno_cols <- grep("^annotation\\|", colnames(D), value=TRUE)
+  if (length(anno_cols) == 0) {
+    write.table(data.frame(sample=character(), annotation=character(), n=integer(), fraction=numeric()),
+                "annotation_summary.by_sample.tsv", sep="\\t", quote=FALSE, row.names=FALSE)
+    pdf("annotation_summary.by_sample.pdf", width=8, height=5)
+    plot.new(); title("No annotation|sample columns found")
+    dev.off()
+    quit(save="no")
+  }
+
+  out <- data.frame(sample=character(), annotation=character(), n=integer(), fraction=numeric(), stringsAsFactors=FALSE)
+  for (cn in anno_cols) {
+    sample <- sub("^annotation\\|", "", cn)
+    vals <- D[[cn]]
+    vals <- vals[!is.na(vals) & vals != ""]
+    if (length(vals) == 0) next
+
+    # collapse detailed labels for clearer overview
+    vals2 <- vals
+    vals2[grepl("Promoter", vals2)] <- "Promoter"
+    vals2[grepl("Exon", vals2)] <- "Exon"
+    vals2[grepl("Intron", vals2)] <- "Intron"
+    vals2[grepl("Intergenic", vals2)] <- "Intergenic"
+    vals2[grepl("UTR", vals2)] <- "UTR"
+
+    T <- sort(table(vals2), decreasing=TRUE)
+    tmp <- data.frame(
+      sample = sample,
+      annotation = names(T),
+      n = as.integer(T),
+      fraction = as.numeric(T) / sum(T),
+      stringsAsFactors = FALSE
+    )
+    out <- rbind(out, tmp)
+  }
+
+  write.table(out, "annotation_summary.by_sample.tsv", sep="\\t", quote=FALSE, row.names=FALSE)
+
+  pdf("annotation_summary.by_sample.pdf", width=10, height=6)
+  if (nrow(out) == 0) {
+    plot.new(); title("No annotation summary available")
+  } else {
+    samples <- unique(out$sample)
+    annos <- unique(out$annotation)
+    M <- matrix(0, nrow=length(annos), ncol=length(samples), dimnames=list(annos, samples))
+    for (i in seq_len(nrow(out))) {
+      M[out$annotation[i], out$sample[i]] <- out$fraction[i]
+    }
+    barplot(M, beside=FALSE, legend.text=rownames(M), las=2, ylab="Fraction", main="Peak Annotation Composition")
+  }
+  dev.off()
+  RS
+
+  Rscript summary.R
+  '''
+}
+
 workflow {
   if (!params.idr_output) error "Missing --idr_output"
   if (!params.gtf)        error "Missing --gtf"
@@ -243,5 +319,6 @@ workflow {
 
   annotated = chipseeker_annotate(ch_idr_peaks, ch_gtf)
   stats_paths = annotated.stats_tsv.map { s, f -> f }.collect()
-  chipseeker_master(stats_paths)
+  master = chipseeker_master(stats_paths)
+  chipseeker_summary(master.master_tsv)
 }
