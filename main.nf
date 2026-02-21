@@ -239,7 +239,7 @@ process chipseeker_summary {
   cat > summary.R <<'RS'
   D <- read.delim("annotated_master_table.tsv", as.is=TRUE, check.names=FALSE)
 
-  anno_cols <- grep("^annotation\\|", colnames(D), value=TRUE)
+  anno_cols <- grep("annotation|", colnames(D), value=TRUE, fixed=TRUE)
   if (length(anno_cols) == 0) {
     write.table(data.frame(sample=character(), annotation=character(), n=integer(), fraction=numeric()),
                 "annotation_summary.by_sample.tsv", sep="\\t", quote=FALSE, row.names=FALSE)
@@ -251,7 +251,7 @@ process chipseeker_summary {
 
   out <- data.frame(sample=character(), annotation=character(), n=integer(), fraction=numeric(), stringsAsFactors=FALSE)
   for (cn in anno_cols) {
-    sample <- sub("^annotation\\|", "", cn)
+    sample <- sub("annotation|", "", cn, fixed=TRUE)
     vals <- D[[cn]]
     vals <- vals[!is.na(vals) & vals != ""]
     if (length(vals) == 0) next
