@@ -302,6 +302,18 @@ workflow {
   if (!file(params.gtf).exists()) error "GTF not found: ${params.gtf}"
 
   def peak_pattern = params.idr_peak_pattern ?: "*_idr.sorted.chr.narrowPeak"
+  def selectedPairs = null as Set
+
+  if (params.idr_pairs_csv && file(params.idr_pairs_csv).exists()) {
+    selectedPairs = [] as Set
+    file(params.idr_pairs_csv).eachLine { line, n ->
+      if (n == 1 || !line?.trim()) return
+      def cols = line.split(',', -1)*.trim()
+      if (cols.size() > 0 && cols[0]) {
+        selectedPairs << cols[0]
+      }
+    }
+  }
 
   ch_gtf = Channel.value(file(params.gtf))
 
@@ -315,6 +327,11 @@ workflow {
         .replaceFirst(/\.narrowPeak$/, '')
       tuple(sample, f)
     }
+    .filter { sample, f ->
+      if (selectedPairs == null) return true
+      selectedPairs.contains(sample)
+    }
+    .ifEmpty { error "No IDR peaks matched selected pair set. Check --idr_pairs_csv and --idr_peak_pattern." }
     .set { ch_idr_peaks }
 
   annotated = chipseeker_annotate(ch_idr_peaks, ch_gtf)
