@@ -25,6 +25,7 @@ Required:
 Optional:
 
 - `--idr_peak_pattern` (default: `*_idr.sorted.chr.narrowPeak`)
+- `--idr_pairs_csv` (optional; if provided, only annotate pair names listed in `pair_name` column)
 - `--annoDb` (default: `org.Mm.eg.db`)
 - `--reactome_org` (default: `mouse`)
 - `--do_enrich` (default: `true`)
@@ -65,6 +66,15 @@ Example with explicit input path:
 ```bash
 nextflow run main.nf -profile hpc \
   --idr_output /ictstr01/groups/idc/projects/uhlenhaut/jiang/pipelines/nf-idr/idr_output \
+  --gtf /ictstr01/groups/idc/projects/uhlenhaut/jiang/reference/gtf/mm39.gencode.vM34.annotation.gtf
+```
+
+Restrict to selected IDR pairs:
+
+```bash
+nextflow run main.nf -profile hpc \
+  --idr_output /ictstr01/groups/idc/projects/uhlenhaut/jiang/pipelines/nf-idr/idr_output \
+  --idr_pairs_csv /ictstr01/groups/idc/projects/uhlenhaut/jiang/pipelines/nf-idr/idr_pairs.csv \
   --gtf /ictstr01/groups/idc/projects/uhlenhaut/jiang/reference/gtf/mm39.gencode.vM34.annotation.gtf
 ```
 
