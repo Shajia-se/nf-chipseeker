@@ -25,6 +25,10 @@ process chipseeker_annotate {
   script:
   """
   set -euo pipefail
+  mkdir -p tmp
+  export TMPDIR=\$PWD/tmp
+  export TEMP=\$PWD/tmp
+  export TMP=\$PWD/tmp
 
   cat > run.R <<'RS'
   suppressPackageStartupMessages({
@@ -197,6 +201,10 @@ process chipseeker_master {
   script:
   '''
   set -euo pipefail
+  mkdir -p tmp
+  export TMPDIR=$PWD/tmp
+  export TEMP=$PWD/tmp
+  export TMP=$PWD/tmp
 
   cat > master.R <<'RS'
   suppressPackageStartupMessages({
@@ -235,6 +243,10 @@ process chipseeker_summary {
   script:
   '''
   set -euo pipefail
+  mkdir -p tmp
+  export TMPDIR=$PWD/tmp
+  export TEMP=$PWD/tmp
+  export TMP=$PWD/tmp
 
   cat > summary.R <<'RS'
   D <- read.delim("annotated_master_table.tsv", as.is=TRUE, check.names=FALSE)
