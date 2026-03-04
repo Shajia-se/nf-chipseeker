@@ -132,9 +132,10 @@ process chipseeker_annotate {
               sep="\t", quote=FALSE, row.names=FALSE)
   openxlsx::write.xlsx(peak_df, file=paste0("annotated_peaks.", sample, ".xlsx"), rowNames=FALSE)
 
-  pdf(paste0("annotated.", sample, ".pdf"), width=10, height=7)
-    plotAnnoPie(peakAnno)
-    plotDistToTSS(peakAnno)
+  pdf(paste0("annotated.", sample, ".pdf"), width=9, height=5)
+    par(mfrow=c(1,2))
+    plotAnnoBar(peakAnno)
+    plotDistToTSS(peakAnno, title=paste("Distance to TSS -", sample))
   dev.off()
 
   promoter <- getPromoters(TxDb=txdb, upstream=tss_up, downstream=tss_up)
@@ -289,7 +290,7 @@ process chipseeker_summary {
 
   write.table(out, "annotation_summary.by_sample.tsv", sep="\\t", quote=FALSE, row.names=FALSE)
 
-  pdf("annotation_summary.by_sample.pdf", width=10, height=6)
+  pdf("annotation_summary.by_sample.pdf", width=10, height=max(2.5, 1.2 + 0.8 * length(unique(out$sample))))
   if (nrow(out) == 0) {
     plot.new(); title("No annotation summary available")
   } else {
@@ -299,7 +300,28 @@ process chipseeker_summary {
     for (i in seq_len(nrow(out))) {
       M[out$annotation[i], out$sample[i]] <- out$fraction[i]
     }
-    barplot(M, beside=FALSE, legend.text=rownames(M), las=2, ylab="Fraction", main="Peak Annotation Composition")
+    cols <- c(
+      Promoter   = "#9dbfd3",
+      Exon       = "#e15759",
+      Intron     = "#f28e2b",
+      Intergenic = "#6b4c9a",
+      UTR        = "#59a14f"
+    )
+    use_cols <- cols[rownames(M)]
+    use_cols[is.na(use_cols)] <- "#bdbdbd"
+    par(mar=c(4, 8, 2, 8), xpd=NA)
+    barplot(
+      t(M),
+      horiz=TRUE,
+      beside=FALSE,
+      col=use_cols,
+      border=NA,
+      xlim=c(0, 1),
+      las=1,
+      xlab="Fraction",
+      main="Peak Annotation Composition"
+    )
+    legend("topright", inset=c(-0.18, 0), legend=rownames(M), fill=use_cols, bty="n", cex=0.8)
   }
   dev.off()
   RS
@@ -309,11 +331,18 @@ process chipseeker_summary {
 }
 
 workflow {
-  if (!params.idr_output) error "Missing --idr_output"
-  if (!params.gtf)        error "Missing --gtf"
+  if (!params.gtf) error "Missing --gtf"
   if (!file(params.gtf).exists()) error "GTF not found: ${params.gtf}"
 
-  def peak_pattern = params.idr_peak_pattern ?: "*_idr.sorted.chr.narrowPeak"
+  def idrPattern = params.idr_peak_pattern ?: "*_idr.sorted.chr.narrowPeak"
+  def consensusPattern = params.consensus_peak_pattern ?: "*_consensus.bed"
+  def diffbindPattern = params.diffbind_peak_pattern ?: "*.bed"
+  def peakSources = (params.chipseeker_peak_sources ?: 'idr,consensus,diffbind')
+    .toString()
+    .split(',')
+    *.trim()
+    .findAll { it }
+    .unique()
   def selectedPairs = null as Set
 
   if (params.idr_pairs_csv && file(params.idr_pairs_csv).exists()) {
@@ -329,25 +358,61 @@ workflow {
 
   ch_gtf = Channel.value(file(params.gtf))
 
-  Channel
-    .fromPath("${params.idr_output}/${peak_pattern}", checkIfExists: true)
-    .ifEmpty { error "No IDR peak files found under ${params.idr_output} with pattern: ${peak_pattern}" }
-    .map { f ->
+  def peakRows = []
+
+  if (peakSources.contains('idr')) {
+    def idrDir = file(params.idr_output)
+    assert idrDir.exists() : "idr_output not found: ${params.idr_output}"
+    def idrFiles = file("${params.idr_output}").listFiles()?.findAll { f ->
+      f.isFile() && f.name ==~ globToRegex(idrPattern)
+    } ?: []
+    idrFiles.each { f ->
       def sample = f.baseName
         .replaceFirst(/_idr\.sorted\.chr$/, '')
         .replaceFirst(/_idr\.sorted$/, '')
         .replaceFirst(/\.narrowPeak$/, '')
-      tuple(sample, f)
+      if (selectedPairs == null || selectedPairs.contains(sample)) {
+        peakRows << tuple("idr__${sample}", file(f.toString()))
+      }
     }
-    .filter { sample, f ->
-      if (selectedPairs == null) return true
-      selectedPairs.contains(sample)
-    }
-    .ifEmpty { error "No IDR peaks matched selected pair set. Check --idr_pairs_csv and --idr_peak_pattern." }
-    .set { ch_idr_peaks }
+  }
 
-  annotated = chipseeker_annotate(ch_idr_peaks, ch_gtf)
+  if (peakSources.contains('consensus')) {
+    def consensusDir = file(params.peak_consensus_output)
+    assert consensusDir.exists() : "peak_consensus_output not found: ${params.peak_consensus_output}"
+    def consensusFiles = file("${params.peak_consensus_output}").listFiles()?.findAll { f ->
+      f.isFile() && f.name ==~ globToRegex(consensusPattern)
+    } ?: []
+    consensusFiles.each { f ->
+      peakRows << tuple("consensus__${f.baseName}", file(f.toString()))
+    }
+  }
+
+  if (peakSources.contains('diffbind')) {
+    def diffbindDir = file(params.diffbind_output)
+    assert diffbindDir.exists() : "diffbind_output not found: ${params.diffbind_output}"
+    def diffbindFiles = file("${params.diffbind_output}").listFiles()?.findAll { f ->
+      f.isFile() && f.name ==~ globToRegex(diffbindPattern)
+    } ?: []
+    diffbindFiles.each { f ->
+      peakRows << tuple("diffbind__${f.baseName}", file(f.toString()))
+    }
+  }
+
+  Channel
+    .fromList(peakRows)
+    .ifEmpty { error "No peak files found for ChIPseeker. Check configured source directories and patterns." }
+    .set { ch_peak_sets }
+
+  annotated = chipseeker_annotate(ch_peak_sets, ch_gtf)
   stats_paths = annotated.stats_tsv.map { s, f -> f }.collect()
   master = chipseeker_master(stats_paths)
   chipseeker_summary(master.master_tsv)
+}
+
+def globToRegex(pattern) {
+  '^' + pattern
+    .replace('.', '\\.')
+    .replace('*', '.*')
+    .replace('?', '.') + '$'
 }
