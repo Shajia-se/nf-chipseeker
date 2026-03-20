@@ -29,7 +29,7 @@ Optional:
 - `--annoDb` (default: `org.Mm.eg.db`)
 - `--reactome_org` (default: `mouse`)
 - `--do_enrich` (default: `true`)
-- `--tss_up` / `--tss_down` (default: `2000` / `2000`)
+- `--tss_up` / `--tss_down` (default: `3000` / `3000`)
 - `--fdr_cutoff` (default: `0.05`)
 
 ## Outputs
@@ -66,7 +66,7 @@ Example with explicit input path:
 ```bash
 nextflow run main.nf -profile hpc \
   --idr_output /ictstr01/groups/idc/projects/uhlenhaut/jiang/pipelines/nf-idr/idr_output \
-  --gtf /ictstr01/groups/idc/projects/uhlenhaut/jiang/reference/gtf/mm39.gencode.vM34.annotation.gtf
+  --gtf /ictstr01/groups/idc/projects/uhlenhaut/jiang/reference/gtf/gencode.vM27.primary_assembly.annotation.gtf
 ```
 
 Restrict to selected IDR pairs:
@@ -75,7 +75,7 @@ Restrict to selected IDR pairs:
 nextflow run main.nf -profile hpc \
   --idr_output /ictstr01/groups/idc/projects/uhlenhaut/jiang/pipelines/nf-idr/idr_output \
   --idr_pairs_csv /ictstr01/groups/idc/projects/uhlenhaut/jiang/pipelines/nf-idr/idr_pairs.csv \
-  --gtf /ictstr01/groups/idc/projects/uhlenhaut/jiang/reference/gtf/mm39.gencode.vM34.annotation.gtf
+  --gtf /ictstr01/groups/idc/projects/uhlenhaut/jiang/reference/gtf/gencode.vM27.primary_assembly.annotation.gtf
 ```
 
 Resume:
