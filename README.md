@@ -1,10 +1,18 @@
 # nf-chipseeker
 
-Nextflow DSL2 module for ChIPseeker-based peak annotation using IDR-filtered peaks.
+Nextflow DSL2 module for ChIPseeker-based peak annotation across IDR, consensus, universe, and DiffBind peak sets.
 
 ## What This Module Does
 
-This module takes IDR peak files (`*_idr.sorted.chr.narrowPeak`) and performs:
+This module can take peak files from:
+
+- `nf-idr`
+- `nf-peak-consensus/strict_q0.01`
+- `nf-peak-consensus/consensus_q0.05`
+- optional `universe_peaks.bed` from each consensus profile
+- `nf-diffbind`
+
+and performs:
 
 - genomic annotation with ChIPseeker (`annotatePeak`)
 - annotation plots (pie + distance to TSS)
@@ -13,13 +21,12 @@ This module takes IDR peak files (`*_idr.sorted.chr.narrowPeak`) and performs:
 - per-sample annotation tables (`tsv` and `xlsx`)
 - merged master table across all samples
 
-This is intended to run directly after `nf-idr`.
+This is intended to run after peak-generation modules are complete.
 
 ## Inputs
 
 Required:
 
-- `--idr_output`: directory containing IDR peak files
 - `--gtf`: GTF annotation file
 
 Optional:
@@ -87,4 +94,6 @@ nextflow run main.nf -profile hpc -resume
 ## Notes
 
 - Sample names are derived from peak filenames by stripping suffixes like `_idr.sorted.chr.narrowPeak`.
+- Default peak sources are `idr,consensus_q0.01,consensus_q0.05,diffbind`.
+- Additional optional source names supported in `--chipseeker_peak_sources` are `consensus` (alias of `consensus_q0.01`), `universe_q0.01`, and `universe_q0.05`.
 - Ensure chromosome naming style between peaks and GTF is compatible (`chr1` vs `1`). The module auto-harmonizes styles and keeps shared seqlevels.

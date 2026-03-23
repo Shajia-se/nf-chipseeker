@@ -337,7 +337,7 @@ workflow {
   def idrPattern = params.idr_peak_pattern ?: "*_idr.sorted.chr.narrowPeak"
   def consensusPattern = params.consensus_peak_pattern ?: "*_consensus.bed"
   def diffbindPattern = params.diffbind_peak_pattern ?: "*.bed"
-  def peakSources = (params.chipseeker_peak_sources ?: 'idr,consensus,diffbind')
+  def peakSources = (params.chipseeker_peak_sources ?: 'idr,consensus_q0.01,consensus_q0.05,diffbind')
     .toString()
     .split(',')
     *.trim()
@@ -377,14 +377,44 @@ workflow {
     }
   }
 
-  if (peakSources.contains('consensus')) {
+  def addPeakRow = { label, peakPath ->
+    if (!peakRows.any { it[0] == label }) {
+      peakRows << tuple(label, file(peakPath.toString()))
+    }
+  }
+
+  if (peakSources.any { it in ['consensus', 'consensus_q0.01', 'consensus_q0.05', 'universe_q0.01', 'universe_q0.05'] }) {
     def consensusDir = file(params.peak_consensus_output)
     assert consensusDir.exists() : "peak_consensus_output not found: ${params.peak_consensus_output}"
-    def consensusFiles = file("${params.peak_consensus_output}").listFiles()?.findAll { f ->
-      f.isFile() && f.name ==~ globToRegex(consensusPattern)
-    } ?: []
-    consensusFiles.each { f ->
-      peakRows << tuple("consensus__${f.baseName}", file(f.toString()))
+
+    if (peakSources.any { it in ['consensus', 'consensus_q0.01'] }) {
+      def consensusFiles = file("${params.peak_consensus_output}/strict_q0.01").listFiles()?.findAll { f ->
+        f.isFile() && f.name ==~ globToRegex(consensusPattern)
+      } ?: []
+      consensusFiles.each { f ->
+        addPeakRow("consensus_q0.01__${f.baseName}", f)
+      }
+    }
+
+    if (peakSources.contains('consensus_q0.05')) {
+      def consensusFiles = file("${params.peak_consensus_output}/consensus_q0.05").listFiles()?.findAll { f ->
+        f.isFile() && f.name ==~ globToRegex(consensusPattern)
+      } ?: []
+      consensusFiles.each { f ->
+        addPeakRow("consensus_q0.05__${f.baseName}", f)
+      }
+    }
+
+    if (peakSources.contains('universe_q0.01')) {
+      def f = file("${params.peak_consensus_output}/strict_q0.01/universe_peaks.bed")
+      assert f.exists() : "Universe q0.01 file not found: ${f}"
+      addPeakRow("universe_q0.01__universe_peaks", f)
+    }
+
+    if (peakSources.contains('universe_q0.05')) {
+      def f = file("${params.peak_consensus_output}/consensus_q0.05/universe_peaks.bed")
+      assert f.exists() : "Universe q0.05 file not found: ${f}"
+      addPeakRow("universe_q0.05__universe_peaks", f)
     }
   }
 
