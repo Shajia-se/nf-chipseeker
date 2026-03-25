@@ -412,9 +412,19 @@ workflow {
     }
 
     if (peakSources.contains('universe_q0.05')) {
-      def f = file("${params.peak_consensus_output}/consensus_q0.05/universe_peaks.bed")
-      assert f.exists() : "Universe q0.05 file not found: ${f}"
-      addPeakRow("universe_q0.05__universe_peaks", f)
+      def universeCandidates = [
+        tuple("universe_q0.05__universe_peaks", file("${params.peak_consensus_output}/consensus_q0.05/universe_peaks.bed")),
+        tuple("universe_q0.05__consensus_first_universe_peaks", file("${params.peak_consensus_output}/consensus_q0.05/${params.consensus_first_universe_file}")),
+        tuple("universe_q0.05__union_first_universe_peaks", file("${params.peak_consensus_output}/consensus_q0.05/${params.union_first_universe_file}"))
+      ]
+      def anyFound = false
+      universeCandidates.each { label, f ->
+        if (f.exists()) {
+          addPeakRow(label, f)
+          anyFound = true
+        }
+      }
+      assert anyFound : "No universe q0.05 files found under ${params.peak_consensus_output}/consensus_q0.05"
     }
   }
 

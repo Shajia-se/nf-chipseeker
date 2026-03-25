@@ -9,7 +9,10 @@ This module can take peak files from:
 - `nf-idr`
 - `nf-peak-consensus/strict_q0.01`
 - `nf-peak-consensus/consensus_q0.05`
-- optional `universe_peaks.bed` from each consensus profile
+- optional universe peak beds from each consensus profile, including:
+  - `universe_peaks.bed`
+  - `consensus_first_universe_peaks.bed`
+  - `union_first_universe_peaks.bed`
 - `nf-diffbind`
 
 and performs:
@@ -96,4 +99,5 @@ nextflow run main.nf -profile hpc -resume
 - Sample names are derived from peak filenames by stripping suffixes like `_idr.sorted.chr.narrowPeak`.
 - Default peak sources are `idr,consensus_q0.01,consensus_q0.05,diffbind`.
 - Additional optional source names supported in `--chipseeker_peak_sources` are `consensus` (alias of `consensus_q0.01`), `universe_q0.01`, and `universe_q0.05`.
+- When `universe_q0.05` is enabled, the module now annotates any available q0.05 universe files under `nf-peak-consensus/consensus_q0.05/`, including `universe_peaks.bed`, `consensus_first_universe_peaks.bed`, and `union_first_universe_peaks.bed`.
 - Ensure chromosome naming style between peaks and GTF is compatible (`chr1` vs `1`). The module auto-harmonizes styles and keeps shared seqlevels.
